@@ -1,0 +1,49 @@
+import pandas as pd
+import numpy as np
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+
+# Step 1: Create a sample dataset
+date_rng = pd.date_range(start='2023-01-01', end='2024-12-31', freq='D')
+data = np.random.randint(100, 200, size=(len(date_rng)))
+df = pd.DataFrame(date_rng, columns=['date'])
+df['sales'] = data
+
+# Step 2: Feature Engineering
+df['day_of_week'] = df['date'].dt.dayofweek
+df['month'] = df['date'].dt.month
+df['lag_1'] = df['sales'].shift(1)
+df['lag_7'] = df['sales'].shift(7)
+df['rolling_mean_7'] = df['sales'].rolling(window=7).mean()
+df['rolling_std_7'] = df['sales'].rolling(window=7).std()
+df.fillna(0, inplace=True)  # Handle missing values
+
+# Step 3: Prepare the data for modeling
+X = df[['day_of_week', 'month', 'lag_1', 'lag_7', 'rolling_mean_7', 'rolling_std_7']]
+y = df['sales']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+
+# Step 4: Train the XGBoost model
+xg_reg = xgb.XGBRegressor(objective ='reg:squarederror', n_estimators=100, max_depth=7, learning_rate=0.1, subsample=0.8)
+xg_reg.fit(X_train, y_train)
+
+# Step 5: Make predictions and evaluate the model
+y_pred = xg_reg.predict(X_test)
+mae = mean_absolute_error(y_test, y_pred)
+
+# Step 6: Print the results
+print(f'Mean Absolute Error: {mae}')
+
+# Step 7: Plot the results
+import matplotlib.pyplot as plt
+plt.figure(figsize=(10, 6))
+plt.plot(y_test.index, y_test, label='Actual Sales')
+plt.plot(y_test.index, y_pred, label='Predicted Sales', color='red')
+plt.title('XGBoost Time Series Forecast')
+plt.xlabel('Date')
+plt.ylabel('Sales')
+plt.legend()
+plt.show()
